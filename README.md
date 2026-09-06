@@ -38,3 +38,5 @@ Complaint attachments are stored in MongoDB as binary file records containing th
 - Staff: `/dashboard`, `/complaints`
 
 Demo accounts (all use `ResolveX@123`) are seeded by `npm run seed --prefix server`.
+
+Students can create accounts at `/register`. Admin and staff accounts must be created by the seed script or by an administrator.

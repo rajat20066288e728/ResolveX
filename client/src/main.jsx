@@ -3,7 +3,7 @@ import {createRoot} from 'react-dom/client';
 import axios from 'axios';
 import {BrowserRouter,useNavigate,useLocation,Link,Routes,Route,Navigate} from 'react-router-dom';
  import {LayoutDashboard,Inbox,Users,Building2,Tags,Megaphone,FileDown,Search,Bell,Plus,ChevronRight,LogOut,ShieldCheck,Menu,X,Clock3,CheckCircle2,AlertTriangle,ArrowUpRight,Check} from 'lucide-react';
-import {Toaster,toast} from 'react-hot-toast'; import './style.css'; import './responsive.css'; import './landing.css';
+import {Toaster,toast} from 'react-hot-toast'; import './style.css'; import './responsive.css'; import './landing.css'; import './auth.css';
 const api=axios.create({baseURL:import.meta.env.VITE_API_URL||'/api'});api.interceptors.request.use(c=>{const t=localStorage.getItem('rx_token');if(t)c.headers.Authorization=`Bearer ${t}`;return c});
 const read=()=>{try{return JSON.parse(localStorage.getItem('rx_user')||'null')}catch{return null}};const logout=()=>{localStorage.removeItem('rx_token');localStorage.removeItem('rx_user');location.href='/'};
 const Status=({v})=><span className={'badge '+String(v).toLowerCase().replaceAll('_','-').replaceAll(' ','-')}>{String(v).replaceAll('_',' ')}</span>;

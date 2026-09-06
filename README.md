@@ -6,7 +6,7 @@ ResolveX is a MERN complaint management platform. The interface follows `design.
 1. `npm install`
 2. `npm install --prefix server`
 3. `npm install --prefix client`
-4. Copy `.env.example` to `.env`, set `MONGODB_URI`, `JWT_SECRET`, and `BLOB_READ_WRITE_TOKEN`, then `npm run dev`.
+4. Copy `.env.example` to `.env`, set `MONGODB_URI` and `JWT_SECRET`, then `npm run dev`.
 
 Demo accounts are documented in `server/seed.js` (password: `ResolveX@123`):
 
@@ -27,9 +27,9 @@ CLIENT_URL=https://<your-vercel-domain>
 VITE_API_URL=/api
 ```
 
-Use MongoDB Atlas for production; a local `127.0.0.1` MongoDB URL only works during local development. Vercel storage is ephemeral, so production file uploads should use Cloudinary or S3 rather than the local `uploads` folder.
+Use MongoDB Atlas for production; a local `127.0.0.1` MongoDB URL only works during local development. Uploaded complaint files are stored as binary data in MongoDB, so keep uploads below the configured 5 MB file limit and keep each complaint document below MongoDB's 16 MB document limit.
 
-The current production upload adapter uses Vercel Blob. Set `BLOB_READ_WRITE_TOKEN` in Vercel and local development when testing uploads. If the token is absent locally, uploads use an in-memory data URL fallback for development only.
+Complaint attachments are stored in MongoDB as binary file records containing the original filename, MIME type, size, and buffer data. Keep upload limits small because MongoDB documents have a 16 MB document limit; for larger production files, migrate the file records to GridFS or object storage.
 
 ## Role portals
 

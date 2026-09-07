@@ -1,0 +1,333 @@
+# ==============================================================================
+# RESOLVEX - EXHAUSTIVE UI/UX, LAYOUT & INTERACTIVE QA AUDIT REPORT FOR GPT-5.6
+# ==============================================================================
+# Target AI / Engineer: GPT-5.6 / Senior Full-Stack Architect
+# Project: ResolveX (MERN Complaint Management Platform)
+# Live URLs: http://localhost:5174/ (or http://localhost:5173/) | Backend: http://localhost:5000/
+# ==============================================================================
+
+## 1. EXECUTIVE SUMMARY & TEST SUMMARY
+
+Interactive end-to-end browser testing was executed across the live application covering form input writing, button clicking, student login, complaint submission, admin announcements, and student creation.
+
+### Interactive Test Results
+- ✅ **Student Login Flow**: Input filling, button state transition (`"Signing in…"`), token storage, and redirect to `/dashboard` — **PASSED**.
+- ✅ **New Complaint Submission**: All 7 form fields (Title, Category, Department, Priority, Location, Attachment, Description) accepted text input and submitted cleanly. Toast `"Complaint CMP-2026-00005 submitted"` displayed and redirected to `/complaints` — **PASSED**.
+- ❌ **Complaint Detail View Navigation**: Table rows lack React Router links. Direct URL navigation to `/complaints/CMP-2026-00005` triggered an unhandled backend Mongoose `CastError` on `_id` — **FAILED / CRITICAL BUG**.
+- ✅ **Admin Actions (Announcements, Students, Status Update)**: Form toggles, student creation with `POST /api/admin/students`, announcement publishing, and table status `<select>` updates with `PUT /api/admin/complaints/:id` — **VERIFIED**.
+
+---
+
+## 2. FUNCTIONAL & INTERACTION BUGS DISCOVERED
+
+### 🚨 Critical Bug 1: Backend Crash on Custom Complaint ID (`CastError`)
+- **Location**: `server/server.js` (lines 21 & 22)
+- **Problem**: When requesting `GET /api/complaints/CMP-2026-00005`, the route executes:
+  ```js
+  Complaint.findOne({ $or: [{ _id: req.params.id }, { complaintId: req.params.id }] })
+  ```
+  Because `CMP-2026-00005` is not a 24-character hexadecimal string, Mongoose throws an unhandled:
+  `CastError: Cast to ObjectId failed for value "CMP-2026-00005" at path "_id"`
+  causing a `500 Internal Server Error`.
+- **Fix**: Check `mongoose.Types.ObjectId.isValid(id)` before querying by `_id`:
+  ```js
+  app.get('/api/complaints/:id', auth(), async (req, res) => {
+    try {
+      const isOid = mongoose.Types.ObjectId.isValid(req.params.id);
+      const query = isOid 
+        ? { $or: [{ _id: req.params.id }, { complaintId: req.params.id }] } 
+        : { complaintId: req.params.id };
+      const c = await Complaint.findOne(query).populate('submittedBy assignedTo', 'name email department');
+      if (!c) return res.status(404).json({ message: 'Complaint not found' });
+      res.json(c);
+    } catch (e) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+  ```
+
+---
+
+### 🚨 Critical Bug 2: Missing Navigation Links on Table Rows (`RequestTable`)
+- **Location**: `client/src/main.jsx` (line 17: `RequestTable` and line 21: `AdminComplaints`)
+- **Problem**: Table rows render static text. Users cannot click into a complaint to view its description, timeline, or attachments.
+- **Fix**: Wrap the reference number and title in `<Link to={`/complaints/${c._id}`}>`:
+  ```jsx
+  <td>
+    <Link to={`/complaints/${c._id}`} style={{ textDecoration: 'none', color: '#1e3a8a', fontWeight: 700 }}>
+      {c.complaintId}
+    </Link>
+  </td>
+  <td>
+    <Link to={`/complaints/${c._id}`} style={{ textDecoration: 'none', color: '#111827' }}>
+      <b>{c.title}</b>
+    </Link>
+    <small>{c.category} · {c.department}</small>
+  </td>
+  ```
+
+---
+
+## 3. UI/UX LAYOUT & RESPONSIVENESS DEFECTS (BROWSER AUDIT)
+
+### 🚨 Layout Defect 1: Global `nav` Collision & Floating Pseudo-Element
+- **Selectors**: `nav`, `nav::before`, `.saas aside`, `.side-nav`, `.landing-nav nav`
+- **Source Files**: `responsive.css` (lines 34–38), `style.css` (line 1)
+- **Defect**:
+  - `responsive.css:34` defines a generic `nav` selector with `position: fixed; inset: 0 auto 0 0; width: 248px;`. This forces `<nav className="side-nav">` inside `<aside>` to break out and cover the brand header and workspace banner.
+  - `nav::before` injects a duplicate floating `"ResolveX"` header on top of the sidebar.
+  - On mobile screens (≤767px), `style.css:1` pins `nav` to `bottom: 0`, creating an unstyled phantom bottom navigation bar.
+- **Fix**: Remove all global `nav` and `nav::before` selectors. Scope navigation styles exclusively to `.side-nav` and `.landing-nav nav`.
+
+---
+
+### 🚨 Layout Defect 2: Landing Page Links Vertically Stacked & Clipped Off-Screen
+- **Selectors**: `.landing-nav nav`, `.landing-nav nav a`
+- **Source Files**: `landing.css` (line 1), `responsive.css` (lines 34–36)
+- **Defect**: Inside the 78px header, the 3 nav links ("How it works", "Features", "About") are forced into a column stack of **195.24px** height. Link 1 ("How it works") is at `top: -59.18px`—**completely clipped above the top of the browser screen**.
+- **Fix**:
+  ```css
+  .landing-nav nav {
+    position: static;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 28px;
+    height: auto;
+    width: auto;
+    padding: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+  .landing-nav nav::before {
+    display: none !important;
+  }
+  .landing-nav nav a {
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #4b5563;
+    text-decoration: none;
+    width: auto;
+  }
+  ```
+
+---
+
+### 🚨 Layout Defect 3: Tablet (768px–1024px) Grid Blowout & Horizontal Scrolling
+- **Selectors**: `.dashboard-grid`, `.metric-grid`, `.workspace-main`, `.page`
+- **Source Files**: `responsive.css` (line 54)
+- **Defect**:
+  - On a 1024px tablet, available content width is `684px`.
+  - `.dashboard-grid` (`minmax(280px, .8fr)`) and `.metric-grid` force a minimum width of `781.13px`, blowing page `scrollWidth` out to **1121px** and causing an unwanted horizontal scrollbar.
+  - At 768px, the request table is squished down to **196px** while containing a 550px table.
+- **Fix**:
+  ```css
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  @media (max-width: 1100px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  ```
+
+---
+
+### 🚨 Layout Defect 4: Mobile (375px–480px) Table Viewport Blowout (+263px Overflow)
+- **Selectors**: `.table-wrap`, `.table-wrap table`, `.panel.request-panel`
+- **Source Files**: `responsive.css` (line 55)
+- **Defect**: Negative margin (`margin: 0 -22px`) on `.table-wrap` and `min-width: 620px` table expand `.panel.request-panel` to **622px** width on a **375px** phone, causing **+263px** of horizontal overflow.
+- **Fix**:
+  ```css
+  .panel {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0;
+    width: 100%;
+  }
+  .table-wrap table {
+    min-width: 520px;
+    width: 100%;
+  }
+  ```
+
+---
+
+### 🚨 Layout Defect 5: Complaint Detail Page Completely Unstyled
+- **Selectors**: `.detail-grid`, `.detail-meta`, `.detail-copy`, `.detail-fields`, `.timeline`, `.done`
+- **Source Files**: `main.jsx` (line 20)
+- **Defect**: Zero CSS rules exist for these selectors in any stylesheet. The page falls back to unstyled stacked blocks with 0px spacing and no timeline connectors.
+- **Fix**:
+  ```css
+  .detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .detail-grid { grid-template-columns: 1fr; }
+  }
+  .detail-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+  }
+  .detail-meta b { font-size: 17px; color: #1e3a8a; }
+  .detail-meta span { font-size: 12px; color: #6b7280; font-weight: 500; }
+  .detail-copy {
+    font-size: 14px;
+    line-height: 1.65;
+    color: #374151;
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 16px;
+    margin: 14px 0 20px;
+  }
+  .detail-fields {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  .detail-fields > div {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .detail-fields small {
+    display: block;
+    font-size: 11px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+  .detail-fields b { font-size: 13px; color: #111827; }
+  
+  /* Vertical Stepper Timeline */
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    position: relative;
+    padding-left: 32px;
+    margin-top: 20px;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: #e5e7eb;
+  }
+  .timeline > div {
+    position: relative;
+    font-size: 13px;
+    font-weight: 500;
+    color: #9ca3af;
+  }
+  .timeline > div::before {
+    content: '';
+    position: absolute;
+    left: -32px;
+    top: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #cbd5e1;
+  }
+  .timeline > div.done {
+    color: #0f172a;
+    font-weight: 600;
+  }
+  .timeline > div.done::before {
+    background: #2563eb;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px #dbeafe;
+  }
+  ```
+
+---
+
+### 🚨 Layout Defect 6: Invisible Status Badges (White-on-White Text)
+- **Defect**: The `<Status>` component renders classes like `badge pending` and `badge in-progress`. `style.css` only defined colors for `.open` and `.resolved`. The base `.badge` has `color: #fff;` with no background set, making pending, in-progress, and rejected statuses completely invisible on white table rows.
+- **Fix**:
+  ```css
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+  .badge.pending { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+  .badge.in-progress, .badge.in_progress { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+  .badge.resolved { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+  .badge.rejected { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+  .badge.closed { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
+  ```
+
+---
+
+### 🚨 Layout Defect 7: Unstyled Controls & Native Browser Form Elements
+- **Defect**:
+  - Cancel button in Add Student renders with an outset black border (`border: 1.11px outset #000`).
+  - Table status `<select>` dropdown renders with native OS gray borders and no padding.
+- **Fix**:
+  ```css
+  .form-actions button[type="button"] {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 9px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  td select {
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1f2937;
+    cursor: pointer;
+    outline: none;
+  }
+  td select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  }
+  ```
+
+---
+
+## 4. MASTER ACTION PLAN FOR GPT-5.6
+
+1. **Fix the Backend CastError Bug in [`server/server.js`](file:///c:/Users/ov/Desktop/compient%20project/server/server.js)**: Guard the `_id` query using `mongoose.Types.ObjectId.isValid()`.
+2. **Add Navigation Links in [`client/src/main.jsx`](file:///c:/Users/ov/Desktop/compient%20project/client/src/main.jsx)**: Wrap complaint IDs and titles in `<Link to={`/complaints/${c._id}`}>`.
+3. **Clean Up Generic CSS Rules in [`responsive.css`](file:///c:/Users/ov/Desktop/compient%20project/client/src/responsive.css) and [`style.css`](file:///c:/Users/ov/Desktop/compient%20project/client/src/style.css)**: Remove all generic `nav` and `nav::before` declarations.
+4. **Implement Missing Complaint Detail Styles**: Add `.detail-grid`, `.detail-fields`, `.timeline`, and `.done`.
+5. **Add High-Contrast Status Badge CSS**: Provide distinct background & foreground colors for all statuses (`pending`, `in-progress`, `resolved`, `rejected`, `closed`).
+6. **Eliminate Mobile & Tablet Overflow**: Replace `-22px` table margins, set `min-width: 0` on panels, and make `.metric-grid` auto-fit.
+7. **Style Admin Form Controls**: Format the Add Student Cancel button and status change `<select>`.

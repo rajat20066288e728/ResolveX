@@ -1,0 +1,15 @@
+/* Explicit contrast pass: never rely on inherited white text on light surfaces. */
+.saas,.workspace-main,.page,.panel,.metric,.complaint,.help,.full-panel,.form-panel{color:#14243e}
+.panel h2,.panel h3,.page-heading h2,.sectiontitle h2,.complaint h3,.metric strong,.metric small,.table-wrap td b{color:#14243e}
+.panel p,.complaint p,.detail-copy,.detail-fields b,.announcement-list p,.empty{color:#64748b}
+.panel input,.panel select,.panel textarea,.searchbox input,.auth-card input{color:#14243e;background:#fff}
+.panel input::placeholder,.panel textarea::placeholder,.searchbox input::placeholder,.auth-card input::placeholder{color:#94a3b8;opacity:1}
+.panel label,.form-panel label,.modal label{color:#536278}
+.form-actions,.form-actions span{color:#64748b}.form-actions a{color:#4f46e5}.form-actions button[type=button]{color:#334155;background:#f1f5f9}
+.table-wrap th{color:#64748b;background:#f8fafc}.table-wrap td{color:#526174;background:#fff}.table-wrap td small{color:#8793a4}.table-wrap tr:hover td{background:#fafbff}
+.topbar,.topbar h1{color:#14243e}.topbar .eyebrow,.topbar p{color:#8793a4}
+.side-nav a{color:#66758a}.side-nav a.active{color:#4f46e5}.side-logout{color:#66758a}
+.landing-section h2,.landing-section h3,.landing-section p,.landing-section .steps p{color:#14243e}.landing-section .steps p{color:#64748b}
+.auth-card{color:#14243e}.auth-card h2{color:#14243e}.auth-card p{color:#64748b}.auth-card label{color:#536278}.auth-card small{color:#8793a4}.auth-card a{color:#4f46e5}
+.primary{color:#fff;background:#172b52}.primary:hover{background:#0f1f3d}.badge{color:#fff}
+.detail-fields small{color:#64748b}.detail-fields b{color:#14243e}.timeline>div{color:#94a3b8}.timeline>div.done{color:#14243e}

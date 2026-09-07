@@ -1,0 +1,107 @@
+# ==============================================================================
+# RESOLVEX - DEEP-DIVE UI/UX AUDIT LOG & COMPREHENSIVE DEFECT REGISTER
+# ==============================================================================
+# Audit Source: Interactive Browser DevTools Multi-Viewport Inspection
+# Target Viewports Tested: Desktop (1440px), Tablet (768px - 1024px), Mobile (375px - 480px)
+# Target AI / Engineer: GPT-5.6 / Lead Frontend Architect
+# Project: ResolveX (MERN Complaint Management Platform)
+# Live URLs: http://localhost:5174/ (or http://localhost:5173/) | API: http://localhost:5000/
+# ==============================================================================
+
+## 1. GLOBAL & SHELL-LEVEL UI/UX FLAWS
+
+### 1.1 Missing HTML Viewport Meta Tag (`client/index.html`)
+- **Severity**: Critical (Mobile Layout Failure)
+- **Defect**: `client/index.html` only contains raw tags (`<div id="root"></div><script...></script>`) with no `<!DOCTYPE html>`, `<html>`, `<head>`, or `<meta name="viewport" content="width=device-width, initial-scale=1.0">`.
+- **Impact**: Mobile devices render the website in standard 980px desktop emulation mode instead of real mobile responsive viewports.
+- **Fix**: Wrap `index.html` with standard HTML5 boilerplate including the viewport meta tag.
+
+### 1.2 Tablet Viewport (768px – 1024px) Header Clipping
+- **Severity**: High
+- **Defect**: At 768px, the sidebar is fixed at `244px`, and the `.topbar` retains `48px` left/right padding. The greeting title, search, notifications, and user identity chip span `805px`, clipping past the right edge of the screen.
+- **Unwanted Whitespace / Measurement**: Horizontal overflow of **+37px** on 768px screens.
+- **Fix**: On viewports ≤ 1024px, reduce `.topbar` padding to `16px 20px`, hide user text label in chip, and shrink gap.
+
+### 1.3 Active Navigation Highlighting Bug
+- **Severity**: Medium
+- **Defect**: Active route highlighting matches strictly via `location.pathname.endsWith(to)`.
+- **Impact**: When a student navigates to sub-routes like `/complaints/new` or `/complaints/:id`, the "My complaints" nav item loses its active highlight state completely.
+- **Fix**: Use `location.pathname.startsWith(to)` for route matching.
+
+---
+
+## 2. UNWANTED SPACING, EXCESSIVE MARGINS & PADDING IMBALANCES
+
+### 2.1 Login Art Panel Gray Gaps on Large Displays (`/login`)
+- **Defect**: `.login-page` has `padding: 32px 0; align-items: center;` applied to the grid, but `.login-art` has a gradient background.
+- **Unwanted Space**: On screens > 800px tall, `.login-art` fails to stretch to full viewport height, leaving awkward light-gray whitespace bars (32px top and 32px bottom) around the gradient container.
+- **Fix**: Remove `padding: 32px 0` from `.login-page` so the gradient panel spans 100% of the viewport height (`min-height: 100vh; height: 100%;`).
+
+### 2.2 Register Form Card Nested Scrollbar & Vertical Clipping (`/register`)
+- **Defect**: The 6-field registration card is `786px` tall. On standard laptops (e.g. 1366x768 / 1440x800), `max-height: calc(100vh - 48px)` forces an internal nested scrollbar on `.auth-card` rather than a natural full-page scroll.
+- **Unwanted Space**: Inner card scrollbars create cramped input touch targets and clip the bottom submit button.
+- **Fix**: Remove `max-height` constraints on `.auth-card` and allow normal page scrolling (`overflow-y: auto` on `.login-page`).
+
+### 2.3 Form vs. List Width Asymmetry on Admin Pages (`/students` & `/announcements`)
+- **Defect**:
+  - In `/students`: The "Add student" form has `max-width: 900px`, while the student table below expands to 100% (`max-width: 1400px`).
+  - In `/announcements`: The announcement creation form has `max-width: 700px`, while the announcements list below is 100% (`max-width: 1400px`).
+- **Unwanted Space**: Creates an awkward, visually lopsided gap on the right side of the screen when forms are open.
+- **Fix**: Standardize container panel widths or place creation forms inside modern modal drawers or equal-width cards.
+
+### 2.4 Action Button Spacing Collapse on Admin Announcement Form
+- **Defect**: In `.announcement-form .form-actions`, `<span>Visible to active users</span>` is jammed directly against the "Publish" button on the right side.
+- **Fix**: Set `margin-right: auto` on the helper span so helper text aligns cleanly to the left while the primary action aligns to the right.
+
+---
+
+## 3. PAGE-BY-PAGE VISUAL & INTERACTIVE DEFECTS
+
+### 3.1 Landing Page (`/`)
+1. **Mobile Nav Collision**: `.landing-nav nav` is styled with `display: flex` without a mobile media query, overriding the mobile hide rule. On small screens, links collide with the logo.
+2. **Hero Preview 3D Tilt Glitch**: The `transform: rotate(1.2deg)` rule causes font subpixel blurring on standard DPI screens.
+3. **Narrow Screen Grid Break (<360px)**: In `.landing-band`, `.feature-list` uses a rigid `grid-template-columns: 1fr 1fr` without `minmax(0, 1fr)` or a 1-column mobile fallback, truncating feature text on narrow phones.
+
+### 3.2 Login Page (`/login`)
+1. **Low-Contrast Helper Text**: Demo credentials text below the submit button has `font-size: 10px` and `#8793a4` color, failing WCAG AA contrast standards (~3.1:1) on white background.
+2. **Missing Input Disabled State**: While `busy` disables the submit button, text inputs remain editable during submission.
+3. **No 1-Click Demo Fillers**: Demo credentials require tedious manual typing.
+
+### 3.3 Dashboard (`/dashboard`)
+1. **Unlinked Table Rows**: Rows in `RequestTable` render plain text without `<Link to={`/complaints/${c._id}`}>`. Clicking rows does nothing.
+2. **Hardcoded Admin Greeting**: Topbar always shows `"Good morning, Admin"` regardless of the admin's name.
+3. **Metric Grid Column Ghosting**: At certain viewports (~1300px), `repeat(auto-fit, minmax(200px, 1fr))` computes an uneven 5th ghost column width.
+
+### 3.4 Complaints List (`/complaints`)
+1. **Dead Filter Button**: The "Filter" button in the toolbar has no `onClick` handler or dropdown menu.
+2. **Admin Table Missing Empty State**: If search returns no results or no complaints exist, `AdminComplaints` table body renders a bare table header with no empty state row.
+3. **Small Touch Targets on Dropdown**: Status `<select>` inside table rows has small padding (`6px 10px`), making selection difficult on touchscreens.
+
+### 3.5 New Complaint Form (`/complaints/new`)
+1. **Unstyled File Input**: Native file input `<input type="file" />` receives text input padding (`12px`), causing the browser button to render misaligned with baseline clipping.
+2. **Low-Contrast Cancel Link**: The "Cancel" action is a tiny 12px text link that lacks prominence next to the submit button.
+
+### 3.6 Complaint Detail Page (`/complaints/:id`)
+1. **Fragile URL ID Extraction**: Component extracts ID via `location.pathname.split('/').pop()`. If trailing slashes exist, the ID resolves to an empty string.
+2. **Hardcoded 3-Step Timeline**: Timeline assumes a linear `Submitted -> In Progress -> Resolved` flow. It has no representation for `REJECTED`, `ASSIGNED`, or `CLOSED` statuses.
+3. **Missing Back Navigation**: Lacks a "Back to complaints" button, forcing users to use the browser back button or sidebar.
+
+### 3.7 Admin Students Management (`/students`)
+1. **Native Confirm Dialog**: Student deletion uses `window.confirm()`, which disrupts mobile touch and headless environments.
+2. **Unstyled Cancel Button**: Cancel button on Add Student form has raw OS styling (`1.11px outset #000`).
+
+---
+
+## 4. MASTER RESOLUTION & REMEDIATION MATRIX
+
+| Area / Page | Issue Type | Priority | Exact Fix Required |
+|---|---|---|---|
+| `client/index.html` | HTML Viewport | P0 (Blocker) | Add `<!DOCTYPE html>`, `<html>`, `<head>`, and `<meta name="viewport" content="width=device-width, initial-scale=1.0">`. |
+| `server/server.js` | Backend CastError | P0 (Blocker) | Use `mongoose.Types.ObjectId.isValid(req.params.id)` before `$or` query on `_id`. |
+| `main.jsx:17, 21` | Navigation | P0 (Blocker) | Wrap Table Complaint ID and Title with `<Link to={`/complaints/${c._id}`}>`. |
+| `responsive.css` | Global Collision | P0 (Blocker) | Remove generic `nav` and `nav::before` selectors; scope strictly to `.side-nav` and `.landing-nav nav`. |
+| `main.jsx:20` | Missing CSS | P0 (Blocker) | Add complete CSS for `.detail-grid`, `.detail-fields`, `.timeline`, and `.done`. |
+| `auth.css` | Spacing & Padding | P1 (High) | Remove `padding: 32px 0` from `.login-page` and remove `max-height` from `.auth-card`. |
+| `responsive.css` | Spacing & Overflow | P1 (High) | Remove `-22px` negative margin on mobile `.table-wrap`; set `min-width: 0` on `.panel`. |
+| `main.jsx:11, 12` | Auth UX | P2 (Medium) | Add "Create account" link to Login, 1-click demo login buttons, and accessible form labels. |
+| `main.jsx:24` | UI Polish | P2 (Medium) | Style Cancel button, match form card widths, and replace `window.confirm` with modal. |
